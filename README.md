@@ -1,6 +1,5 @@
-# CephFS_learning
+###Отчет по изучению CephFS
 
-Отчеты по изучению CephFS
+**[1. Архитектура и принципы работы](./ceph_architecture.md)** [####------] 40%
 
-ceph_architecture - архитектура системы хранения Ceph
-ceph_setup - установка
+**[2. Установка](./ceph_setup.md)** [#####-----] 50%

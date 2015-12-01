@@ -1,5 +1,7 @@
 #Пример разворачивания Ceph
 
+##Разворачиание кластера Ceph
+
 В данном отчете использовались 3 машины с CentOS 6.4. Ниже представлена их конфигурация.
 
 ![Конфигурация](./img/ceph_install_config.jpg)
@@ -148,4 +150,88 @@
 # ceph-deploy osd create ceph-node2:sdb ceph-node2:sdc ceph-node2:sdd
 # ceph-deploy osd create ceph-node3:sdb ceph-node3:sdc ceph-node3:sdd
 # ceph status
+```
+
+##CephFS
+
+Для реализации файловой системы Ceph необходимо запустить кластер хранения Ceph и, по крайней мере, один MDS.
+
+Ceph является системой хранения; для сохранения ваших данных в кластере Ceph вам понадобится машина клиента. После того, как пространство хранения подготовлено к работе в кластере Ceph, клиент отображает или монтирует блок или файловую систему и позволяет нам сохранять данные в кластере Ceph. Для того, чтобы сохранять данные в хранилище объектов клиенты имеют HTTP доступ. Обычный кластер Ceph промышленного класса содержит две различные сети, сеть переднего плана и сеть заднего плана, также называемые общедоступной сетью и сетью кластера, соответственно.
+
+Сеть переднего плана является сетью клиентов, через которую Ceph предоставляет данные своим клиентам. Клиенты не имеют доступ к сети заднего плана и Ceph в основном использует сеть заднего плана для репликаций и восстановления.
+
+Далее необходимо настроить сеть на дополнительной машине клиента.
+
+Измените файл `/etc/sysconfig/network-scripts/ifcfg-eth0` и добавьте в него следующее:
+
+```
+ONBOOT=yes
+BOOTPROTO=dhcp
+```
+
+Измените файл `/etc/sysconfig/network-scripts/ifcfg-eth1` и добавьте в него следующее:
+
+```
+ONBOOT=yes
+BOOTPROTO=static
+IPADDR=192.168.57.200
+NETMASK=255.255.255.0
+```
+
+Измените файл `/etc/hosts` и добавьте в него следующее:
+
+```
+192.168.57.101 ceph-node1
+192.168.57.102 ceph-node2
+192.168.57.103 ceph-node3
+192.168.57.200 ceph-client1
+```
+
+####Монтирование CephFS с применением драйвера ядра
+
+Ядро Linux 2.6.34 и более поздние версии внутренне поддерживают Ceph.
+
+Проверьте версию ядра Linux вашего клиента:
+
+```
+# uname -r
+```
+
+Создайте каталог точки монтирования:
+
+```
+# mkdir /mnt/kernel_cephfs
+```
+
+Запишите секретный ключ администратора:
+
+```
+# cat /etc/ceph/ceph.client.admin.keyring
+```
+
+Смонтируйте CephFS с применением внутреннего вызова монтирования Linux. Его синтаксис такой:
+
+`mount -t ceph <Monitor_IP>:<Monitor_port>:/ <mount_point_name> -o name=admin,secret=<admin_secret_key>`
+
+Ниже представлен пример:
+
+```
+# mount -t ceph 192.168.57.101:6789:/ /mnt/kernel_cephfs -o name=admin,secret=AQAinItT8Ip9AhAAS93FrXLrrnVp8/sQhjvTIg==
+```
+
+Для более безопасного монтирования можно сохранить ключ безопасности администратора в отдельном текстовом файле и использовать его при монтировании:
+
+```
+# echo AQAinItT8Ip9AhAAS93FrXLrrnVp8/sQhjvTIg== > /etc/ceph/adminkey
+# mount -t ceph 192.168.57.101:6789:/ /mnt/kernel_cephfs -o name=admin,secretfile=/etc/ceph/adminkey
+```
+
+Чтобы смонтировать CephFS в вашу таблицу файловой системы добавьте следующие строки в файл `/etc/fstab` клиента. Синтаксис для этого следующий:
+
+`<Mon_ipaddress>:<monitor_port>:/ <mount_point> <filesystemname> [name=username,secret=secretkey|secretfile=/path/to/secretfile],[{mount.options}]`.
+
+Ниже приводится пример команды:
+
+```
+192.168.57.101:6789:/ /mnt/kernel_ceph ceph name=admin,secretfile=/etc/ceph/adminkey,noatime 0 2
 ```
